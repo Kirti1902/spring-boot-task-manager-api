@@ -4,7 +4,8 @@ import com.example.taskmanager.dto.AuthRequest;
 import com.example.taskmanager.dto.AuthResponse;
 import com.example.taskmanager.entity.User;
 import com.example.taskmanager.repository.UserRepository;
-import com.example.taskmanager.security.JwtService;
+import com.example.taskmanager.entity.Role;
+import com.example.taskmanager.security.JwtService; // 🔥 ADD THIS
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -33,9 +34,13 @@ public class AuthController {
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
+        user.setRole(Role.USER);
         userRepository.save(user);
 
-        String token = jwtService.generateToken(user.getUsername());
+        String token = jwtService.generateToken(
+                user.getUsername(),
+                user.getRole().name()
+        );
 
         return new AuthResponse(token);
     }
@@ -52,7 +57,10 @@ public class AuthController {
             throw new RuntimeException("Invalid password");
         }
 
-        String token = jwtService.generateToken(user.getUsername());
+        String token = jwtService.generateToken(
+                user.getUsername(),
+                user.getRole().name()
+        );
 
         return new AuthResponse(token);
     }

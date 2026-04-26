@@ -1,30 +1,30 @@
 package com.example.taskmanager.security;
 
-import com.example.taskmanager.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserRepository userRepository;
+    private final RateLimiterService rateLimiterService;
 
-    public JwtFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtFilter(JwtService jwtService,
+                     RateLimiterService rateLimiterService) {
         this.jwtService = jwtService;
-        this.userRepository = userRepository;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @Override
@@ -34,46 +34,55 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // 🔥 STEP 1: Identify user (for rate limiting)
+        String clientKey;
+
         final String authHeader = request.getHeader("Authorization");
 
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                clientKey = jwtService.extractUsername(token); // per-user limit
+            } catch (Exception e) {
+                clientKey = request.getRemoteAddr(); // fallback to IP
+            }
+        } else {
+            clientKey = request.getRemoteAddr();
+        }
+
+        // 🔥 STEP 2: Apply rate limiting
+        if (!rateLimiterService.isAllowed(clientKey)) {
+            response.setStatus(429);
+            response.getWriter().write("Too many requests");
+            return;
+        }
+
+        // 🔥 STEP 3: JWT authentication
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String token = authHeader.substring(7);
-        final String username = jwtService.extractUsername(token);
+        String token = authHeader.substring(7);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        try {
+            String username = jwtService.extractUsername(token);
+            String role = jwtService.extractRole(token);
 
-            var userOptional = userRepository.findByUsername(username);
+            SimpleGrantedAuthority authority =
+                    new SimpleGrantedAuthority("ROLE_" + role);
 
-            if (userOptional.isPresent()) {
-
-                var user = userOptional.get();
-
-                UserDetails userDetails = User.builder()
-                        .username(user.getUsername())
-                        .password(user.getPassword())
-                        .authorities(Collections.emptyList())
-                        .build();
-
-                if (jwtService.isTokenValid(token, username)) {
-
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
-
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(
+                            username,
+                            null,
+                            List.of(authority)
                     );
 
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
-            }
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        } catch (Exception e) {
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

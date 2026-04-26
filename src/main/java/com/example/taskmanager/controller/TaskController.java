@@ -2,6 +2,7 @@ package com.example.taskmanager.controller;
 
 import com.example.taskmanager.dto.TaskRequest;
 import com.example.taskmanager.dto.TaskResponse;
+import com.example.taskmanager.dto.PageResponse;
 import com.example.taskmanager.service.TaskService;
 import com.example.taskmanager.entity.TaskStatus;
 
@@ -37,7 +38,7 @@ public class TaskController {
     // GET ALL with pagination, search, filter
     @Operation(summary = "Get tasks with pagination, search and filtering")
     @GetMapping
-    public Page<TaskResponse> getTasks(
+    public PageResponse<TaskResponse> getTasks(
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) String title,
             @PageableDefault(
@@ -47,7 +48,15 @@ public class TaskController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable
     ) {
-        return service.searchTasks(status, title, pageable);
+        Page<TaskResponse> pageResult = service.searchTasks(status, title, pageable);
+
+        return new PageResponse<>(
+                pageResult.getContent(),
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
     }
 
     // GET BY ID
@@ -73,5 +82,4 @@ public class TaskController {
     public void deleteTask(@PathVariable Long id) {
         service.deleteTask(id);
     }
-
 }
