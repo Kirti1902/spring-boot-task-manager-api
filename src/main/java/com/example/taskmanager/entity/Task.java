@@ -3,7 +3,7 @@ package com.example.taskmanager.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
-import com.example.taskmanager.entity.User;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,6 +29,7 @@ public class Task {
 
     private boolean deleted = false;
 
+    // ✅ NEW: Task belongs to a user
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -115,9 +116,11 @@ public class Task {
         this.deleted = deleted;
     }
 
+    // ✅ Getter & Setter for user
     public User getUser() {
-    return user;
-}
+        return user;
+    }
+
     public void setUser(User user) {
         this.user = user;
     }
