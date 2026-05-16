@@ -18,7 +18,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role;
+    private Role role = Role.USER; // ✅ default role
 
     public User() {
     }
@@ -27,7 +27,7 @@ public class User {
         this.id = id;
         this.username = username;
         this.password = password;
-        this.role = role;
+        this.role = role != null ? role : Role.USER; // ✅ safety
     }
 
     public Long getId() {
@@ -59,6 +59,6 @@ public class User {
     }
 
     public void setRole(Role role) {
-        this.role = role;
+        this.role = (role != null) ? role : Role.USER; // ✅ prevent null role
     }
 }

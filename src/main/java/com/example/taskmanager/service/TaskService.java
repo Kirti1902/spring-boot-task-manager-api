@@ -6,37 +6,28 @@ import com.example.taskmanager.entity.Task;
 import com.example.taskmanager.entity.TaskStatus;
 import com.example.taskmanager.entity.User;
 import com.example.taskmanager.exception.TaskNotFoundException;
+import com.example.taskmanager.exception.UnauthorizedException;
 import com.example.taskmanager.repository.TaskRepository;
-import com.example.taskmanager.repository.UserRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 public class TaskService {
 
     private final TaskRepository repository;
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public TaskService(TaskRepository repository, UserRepository userRepository) {
+    public TaskService(TaskRepository repository, UserService userService) {
         this.repository = repository;
-        this.userRepository = userRepository;
-    }
-
-    // ✅ Get logged-in username from JWT
-    private String getCurrentUsername() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+        this.userService = userService;
     }
 
     // CREATE
     public TaskResponse createTask(TaskRequest request) {
 
-        String username = getCurrentUsername();
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User currentUser = userService.getCurrentUser();
 
         Task task = new Task();
         task.setTitle(request.title());
@@ -44,43 +35,43 @@ public class TaskService {
         task.setStatus(
                 request.status() != null ? request.status() : TaskStatus.PENDING
         );
-        task.setUser(user); // ✅ link task to user
+        task.setUser(currentUser);
 
         Task saved = repository.save(task);
         return TaskResponse.fromEntity(saved);
     }
 
-    // GET BY ID (only own task)
+    // GET BY ID
     public TaskResponse getTaskById(Long id) {
 
-        String username = getCurrentUsername();
+        User currentUser = userService.getCurrentUser();
 
         Task task = repository.findById(id)
                 .orElseThrow(() ->
                         new TaskNotFoundException("Task not found with id: " + id)
                 );
 
-        // ✅ ownership check
-        if (!task.getUser().getUsername().equals(username)) {
-            throw new RuntimeException("Access denied");
+        if (!task.getUser().getId().equals(currentUser.getId())
+                && !userService.isAdmin()) {
+            throw new UnauthorizedException("You are not allowed to access this task");
         }
 
         return TaskResponse.fromEntity(task);
     }
 
-    // UPDATE (only own task)
+    // UPDATE
     public TaskResponse updateTask(Long id, TaskRequest request) {
 
-        String username = getCurrentUsername();
+        User currentUser = userService.getCurrentUser();
 
         Task task = repository.findById(id)
                 .orElseThrow(() ->
                         new TaskNotFoundException("Task not found with id: " + id)
                 );
 
-        // ✅ ownership check
-        if (!task.getUser().getUsername().equals(username)) {
-            throw new RuntimeException("Access denied");
+        if (!task.getUser().getId().equals(currentUser.getId())
+                && !userService.isAdmin()) {
+            throw new UnauthorizedException("You are not allowed to update this task");
         }
 
         task.setTitle(request.title());
@@ -94,53 +85,71 @@ public class TaskService {
         return TaskResponse.fromEntity(updated);
     }
 
-    // DELETE (only own task)
+    // DELETE
     public void deleteTask(Long id) {
 
-        String username = getCurrentUsername();
+        User currentUser = userService.getCurrentUser();
 
         Task task = repository.findById(id)
                 .orElseThrow(() ->
                         new TaskNotFoundException("Task not found with id: " + id)
                 );
 
-        // ✅ ownership check
-        if (!task.getUser().getUsername().equals(username)) {
-            throw new RuntimeException("Access denied");
+        if (!task.getUser().getId().equals(currentUser.getId())
+                && !userService.isAdmin()) {
+            throw new UnauthorizedException("You are not allowed to delete this task");
         }
 
-        repository.delete(task); // triggers @SQLDelete
+        repository.delete(task);
     }
 
-    // PAGINATED + FILTERED SEARCH (only own tasks)
+    // SEARCH (🔥 FIXED ADMIN LOGIC)
     public Page<TaskResponse> searchTasks(
             TaskStatus status,
             String title,
             Pageable pageable
     ) {
 
-        String username = getCurrentUsername();
+        User currentUser = userService.getCurrentUser();
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // 👑 ADMIN → ALL TASKS (NO USER FILTER)
+        if (userService.isAdmin()) {
 
-        Page<Task> tasks;
+            if (status != null && title != null) {
+                return repository.findByStatusAndTitleContainingIgnoreCase(status, title, pageable)
+                        .map(TaskResponse::fromEntity);
+            }
+            else if (status != null) {
+                return repository.findByStatus(status, pageable)
+                        .map(TaskResponse::fromEntity);
+            }
+            else if (title != null) {
+                return repository.findByTitleContainingIgnoreCase(title, pageable)
+                        .map(TaskResponse::fromEntity);
+            }
+            else {
+                return repository.findAll(pageable)
+                        .map(TaskResponse::fromEntity);
+            }
+        }
 
+        // 👤 USER → ONLY OWN TASKS
         if (status != null && title != null) {
-            tasks = repository.findByUserAndStatusAndTitleContainingIgnoreCase(
-                    user, status, title, pageable);
+            return repository.findByUserAndStatusAndTitleContainingIgnoreCase(
+                    currentUser, status, title, pageable)
+                    .map(TaskResponse::fromEntity);
         }
         else if (status != null) {
-            tasks = repository.findByUserAndStatus(user, status, pageable);
+            return repository.findByUserAndStatus(currentUser, status, pageable)
+                    .map(TaskResponse::fromEntity);
         }
         else if (title != null) {
-            tasks = repository.findByUserAndTitleContainingIgnoreCase(
-                    user, title, pageable);
+            return repository.findByUserAndTitleContainingIgnoreCase(currentUser, title, pageable)
+                    .map(TaskResponse::fromEntity);
         }
         else {
-            tasks = repository.findByUser(user, pageable);
+            return repository.findByUser(currentUser, pageable)
+                    .map(TaskResponse::fromEntity);
         }
-
-        return tasks.map(TaskResponse::fromEntity);
     }
 }

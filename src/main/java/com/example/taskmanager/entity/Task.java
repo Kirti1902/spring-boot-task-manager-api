@@ -3,7 +3,7 @@ package com.example.taskmanager.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
-
+import com.example.taskmanager.entity.User;
 import java.time.LocalDateTime;
 
 @Entity
