@@ -1,21 +1,18 @@
 package com.example.taskmanager.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
-import com.example.taskmanager.entity.User;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tasks")
-@SQLDelete(sql = "UPDATE tasks SET deleted = true WHERE id=?")
-@Where(clause = "deleted = false")
 public class Task {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String title;
 
     private String description;
@@ -23,41 +20,41 @@ public class Task {
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
 
+    @Enumerated(EnumType.STRING)
+    private TaskPriority priority;
+
+    private LocalDateTime dueDate;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
-    private boolean deleted = false;
-
-    // ✅ NEW: Task belongs to a user
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    public Task() {
-    }
-
-    public Task(Long id, String title, String description, TaskStatus status,
-                LocalDateTime createdAt, LocalDateTime updatedAt, boolean deleted) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.deleted = deleted;
-    }
-
-    // Automatically set createdAt when record is created
     @PrePersist
-    public void prePersist() {
+    protected void onCreate() {
+
         createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+
+        if (status == null) {
+            status = TaskStatus.PENDING;
+        }
+
+        if (priority == null) {
+            priority = TaskPriority.MEDIUM;
+        }
     }
 
-    // Automatically update updatedAt when record is updated
     @PreUpdate
-    public void preUpdate() {
+    protected void onUpdate() {
+
         updatedAt = LocalDateTime.now();
+    }
+
+    public Task() {
     }
 
     public Long getId() {
@@ -92,6 +89,22 @@ public class Task {
         this.status = status;
     }
 
+    public TaskPriority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(TaskPriority priority) {
+        this.priority = priority;
+    }
+
+    public LocalDateTime getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDateTime dueDate) {
+        this.dueDate = dueDate;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -108,15 +121,6 @@ public class Task {
         this.updatedAt = updatedAt;
     }
 
-    public boolean isDeleted() {
-        return deleted;
-    }
-
-    public void setDeleted(boolean deleted) {
-        this.deleted = deleted;
-    }
-
-    // ✅ Getter & Setter for user
     public User getUser() {
         return user;
     }

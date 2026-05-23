@@ -21,8 +21,10 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final RateLimiterService rateLimiterService;
 
-    public JwtFilter(JwtService jwtService,
-                     RateLimiterService rateLimiterService) {
+    public JwtFilter(
+            JwtService jwtService,
+            RateLimiterService rateLimiterService
+    ) {
         this.jwtService = jwtService;
         this.rateLimiterService = rateLimiterService;
     }
@@ -34,31 +36,49 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // 🔥 STEP 1: Identify user (for rate limiting)
+        String path = request.getServletPath();
+
+        // ✅ SKIP SWAGGER + H2 + AUTH ENDPOINTS
+        if (path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/h2-console")
+                || path.startsWith("/api/auth")) {
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 🔥 STEP 1: Identify user for rate limiting
         String clientKey;
 
         final String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
+
             String token = authHeader.substring(7);
+
             try {
-                clientKey = jwtService.extractUsername(token); // per-user limit
+                clientKey = jwtService.extractUsername(token);
+
             } catch (Exception e) {
-                clientKey = request.getRemoteAddr(); // fallback to IP
+                clientKey = request.getRemoteAddr();
             }
+
         } else {
             clientKey = request.getRemoteAddr();
         }
 
         // 🔥 STEP 2: Apply rate limiting
         if (!rateLimiterService.isAllowed(clientKey)) {
+
             response.setStatus(429);
             response.getWriter().write("Too many requests");
             return;
         }
 
-        // 🔥 STEP 3: JWT authentication
+        // 🔥 STEP 3: JWT Authentication
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+
             filterChain.doFilter(request, response);
             return;
         }
@@ -66,6 +86,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         try {
+
             String username = jwtService.extractUsername(token);
             String role = jwtService.extractRole(token);
 
@@ -79,9 +100,11 @@ public class JwtFilter extends OncePerRequestFilter {
                             List.of(authority)
                     );
 
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authToken);
 
         } catch (Exception e) {
+
             SecurityContextHolder.clearContext();
         }
 

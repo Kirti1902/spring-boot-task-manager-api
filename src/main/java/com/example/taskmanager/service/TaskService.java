@@ -32,6 +32,8 @@ public class TaskService {
         Task task = new Task();
         task.setTitle(request.title());
         task.setDescription(request.description());
+        task.setPriority(request.priority());
+        task.setDueDate(request.dueDate());
         task.setStatus(
                 request.status() != null ? request.status() : TaskStatus.PENDING
         );
@@ -63,6 +65,7 @@ public class TaskService {
     public TaskResponse updateTask(Long id, TaskRequest request) {
 
         User currentUser = userService.getCurrentUser();
+    
 
         Task task = repository.findById(id)
                 .orElseThrow(() ->
@@ -76,6 +79,8 @@ public class TaskService {
 
         task.setTitle(request.title());
         task.setDescription(request.description());
+        task.setPriority(request.priority());
+        task.setDueDate(request.dueDate());
 
         if (request.status() != null) {
             task.setStatus(request.status());

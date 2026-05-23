@@ -1,67 +1,35 @@
 package com.example.taskmanager.controller;
 
-import com.example.taskmanager.dto.AuthRequest;
 import com.example.taskmanager.dto.AuthResponse;
-import com.example.taskmanager.entity.User;
-import com.example.taskmanager.repository.UserRepository;
-import com.example.taskmanager.entity.Role;
-import com.example.taskmanager.security.JwtService; // 🔥 ADD THIS
+import com.example.taskmanager.dto.LoginRequest;
+import com.example.taskmanager.dto.RegisterRequest;
+import com.example.taskmanager.service.AuthService;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
+    private final AuthService authService;
 
-    public AuthController(UserRepository userRepository,
-                          PasswordEncoder passwordEncoder,
-                          JwtService jwtService) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
-    // REGISTER
     @PostMapping("/register")
-    public AuthResponse register(@RequestBody AuthRequest request) {
+    public AuthResponse register(
+            @RequestBody RegisterRequest request
+    ) {
 
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-        user.setRole(Role.USER);
-        userRepository.save(user);
-
-        String token = jwtService.generateToken(
-                user.getUsername(),
-                user.getRole().name()
-        );
-
-        return new AuthResponse(token);
+        return authService.register(request);
     }
 
-    // LOGIN
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody AuthRequest request) {
+    public AuthResponse login(
+            @RequestBody LoginRequest request
+    ) {
 
-        User user = userRepository
-                .findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
-        }
-
-        String token = jwtService.generateToken(
-                user.getUsername(),
-                user.getRole().name()
-        );
-
-        return new AuthResponse(token);
+        return authService.login(request);
     }
 }

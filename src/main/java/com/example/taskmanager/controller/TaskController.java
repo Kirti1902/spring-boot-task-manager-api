@@ -1,19 +1,26 @@
 package com.example.taskmanager.controller;
 
+import com.example.taskmanager.dto.PageResponse;
 import com.example.taskmanager.dto.TaskRequest;
 import com.example.taskmanager.dto.TaskResponse;
-import com.example.taskmanager.dto.PageResponse;
 import com.example.taskmanager.entity.TaskStatus;
 import com.example.taskmanager.service.TaskService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/tasks")
+@Tag(name = "Task Management", description = "APIs for managing tasks")
 public class TaskController {
 
     private final TaskService service;
@@ -22,20 +29,33 @@ public class TaskController {
         this.service = service;
     }
 
-    // CREATE
+    // CREATE TASK
     @PostMapping
-    public TaskResponse createTask(@Valid @RequestBody TaskRequest request) {
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @Operation(summary = "Create a new task")
+    public TaskResponse createTask(
+            @Valid @RequestBody TaskRequest request
+    ) {
         return service.createTask(request);
     }
 
-    // GET ALL
+    // GET TASKS
     @GetMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @Operation(summary = "Get tasks with pagination and filtering")
     public PageResponse<TaskResponse> getTasks(
-            @RequestParam(required = false) TaskStatus status,
-            @RequestParam(required = false) String title,
+
+            @RequestParam(required = false)
+            TaskStatus status,
+
+            @RequestParam(required = false)
+            String title,
+
             Pageable pageable
     ) {
-        Page<TaskResponse> page = service.searchTasks(status, title, pageable);
+
+        Page<TaskResponse> page =
+                service.searchTasks(status, title, pageable);
 
         return new PageResponse<>(
                 page.getContent(),
@@ -46,24 +66,38 @@ public class TaskController {
         );
     }
 
-    // GET BY ID
+    // GET TASK BY ID
     @GetMapping("/{id}")
-    public TaskResponse getTaskById(@PathVariable Long id) {
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @Operation(summary = "Get task by ID")
+    public TaskResponse getTaskById(
+            @PathVariable Long id
+    ) {
         return service.getTaskById(id);
     }
 
-    // UPDATE
+    // UPDATE TASK
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @Operation(summary = "Update task")
     public TaskResponse updateTask(
+
             @PathVariable Long id,
-            @Valid @RequestBody TaskRequest request
+
+            @Valid @RequestBody
+            TaskRequest request
     ) {
+
         return service.updateTask(id, request);
     }
 
-    // DELETE
+    // DELETE TASK
     @DeleteMapping("/{id}")
-    public void deleteTask(@PathVariable Long id) {
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @Operation(summary = "Delete task")
+    public void deleteTask(
+            @PathVariable Long id
+    ) {
         service.deleteTask(id);
     }
 }
