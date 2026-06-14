@@ -5,7 +5,7 @@ import com.example.taskmanager.dto.TaskRequest;
 import com.example.taskmanager.dto.TaskResponse;
 import com.example.taskmanager.entity.TaskStatus;
 import com.example.taskmanager.service.TaskService;
-
+import com.example.taskmanager.dto.TaskStatsResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -99,5 +99,10 @@ public class TaskController {
             @PathVariable Long id
     ) {
         service.deleteTask(id);
+    }
+
+    @GetMapping("/stats")
+    public TaskStatsResponse getTaskStatistics() {
+        return service.getTaskStatistics();
     }
 }

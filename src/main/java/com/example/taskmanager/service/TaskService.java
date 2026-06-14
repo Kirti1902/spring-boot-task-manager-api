@@ -8,6 +8,7 @@ import com.example.taskmanager.entity.User;
 import com.example.taskmanager.exception.TaskNotFoundException;
 import com.example.taskmanager.exception.UnauthorizedException;
 import com.example.taskmanager.repository.TaskRepository;
+import com.example.taskmanager.dto.TaskStatsResponse;
 
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -157,4 +158,60 @@ public class TaskService {
                     .map(TaskResponse::fromEntity);
         }
     }
+    public TaskStatsResponse getTaskStatistics() {
+
+    User currentUser = userService.getCurrentUser();
+
+    // ADMIN → ALL TASKS
+    if (userService.isAdmin()) {
+
+        long total = repository.count();
+
+        long pending =
+                repository.countByStatus(TaskStatus.PENDING);
+
+        long inProgress =
+                repository.countByStatus(TaskStatus.IN_PROGRESS);
+
+        long completed =
+                repository.countByStatus(TaskStatus.COMPLETED);
+
+        return new TaskStatsResponse(
+                total,
+                pending,
+                inProgress,
+                completed
+        );
+    }
+
+    // NORMAL USER → ONLY OWN TASKS
+
+    long total =
+            repository.countByUser(currentUser);
+
+    long pending =
+            repository.countByUserAndStatus(
+                    currentUser,
+                    TaskStatus.PENDING
+            );
+
+    long inProgress =
+            repository.countByUserAndStatus(
+                    currentUser,
+                    TaskStatus.IN_PROGRESS
+            );
+
+    long completed =
+            repository.countByUserAndStatus(
+                    currentUser,
+                    TaskStatus.COMPLETED
+            );
+
+    return new TaskStatsResponse(
+            total,
+            pending,
+            inProgress,
+            completed
+    );
+}
 }
