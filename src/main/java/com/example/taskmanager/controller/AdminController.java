@@ -1,7 +1,9 @@
 package com.example.taskmanager.controller;
 
+import com.example.taskmanager.dto.AuditLogResponse;
 import com.example.taskmanager.dto.UserResponse;
 import com.example.taskmanager.service.AdminService;
+import com.example.taskmanager.service.AuditService;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,9 +15,14 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService service;
+    private final AuditService auditService;
 
-    public AdminController(AdminService service) {
+    public AdminController(
+            AdminService service,
+            AuditService auditService
+    ) {
         this.service = service;
+        this.auditService = auditService;
     }
 
     @GetMapping("/users")
@@ -38,5 +45,11 @@ public class AdminController {
             @PathVariable Long id
     ) {
         service.deleteUser(id);
+    }
+
+    @GetMapping("/audit-logs")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<AuditLogResponse> getAuditLogs() {
+        return auditService.getAllLogs();
     }
 }
