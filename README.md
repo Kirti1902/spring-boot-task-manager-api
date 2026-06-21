@@ -15,13 +15,18 @@ This project demonstrates **clean backend architecture and best practices** used
 
 * User registration and login
 * JWT based authentication
+* Role-based authorization (USER / ADMIN)
 * Create, update, delete tasks
 * Pagination support
 * Filtering and searching tasks
+* Task statistics dashboard
+* Admin user management
+* Audit logging for task operations
 * Swagger API documentation
 * Global exception handling
 * DTO based request/response design
 * Layered architecture
+* Unit testing with JUnit and Mockito
 
 ---
 
@@ -87,25 +92,37 @@ src/main/java/com/example/taskmanager
 controller/
     TaskController
     AuthController
+    AdminController
     HomeController
 
 service/
     TaskService
     AuthService
+    AdminService
+    AuditService
+    UserService
 
 repository/
     TaskRepository
     UserRepository
+    AuditLogRepository
 
 entity/
     Task
     User
+    AuditLog
+    Role
+    TaskStatus
+    TaskPriority
 
 dto/
     TaskRequest
     TaskResponse
     AuthRequest
     AuthResponse
+    UserResponse
+    TaskStatsResponse
+    AuditLogResponse
 
 security/
     JwtUtil
@@ -161,6 +178,15 @@ Response
 
 ---
 
+# Admin APIs
+
+| Method | Endpoint | Description |
+|----------|------------|-------------|
+| GET | /admin/users | Get all users |
+| GET | /admin/users/{id} | Get user by ID |
+| DELETE | /admin/users/{id} | Delete user |
+| GET | /admin/audit-logs | View audit logs |
+
 ## Login
 
 POST /auth/login
@@ -181,6 +207,23 @@ Response
   "token": "JWT_TOKEN"
 }
 ```
+
+---
+
+# Task Statistics
+
+Endpoint:
+
+GET /tasks/stats
+
+Response:
+
+{
+  "total": 15,
+  "pending": 5,
+  "inProgress": 4,
+  "completed": 6
+}
 
 ---
 
@@ -297,17 +340,38 @@ POST /tasks
 
 ---
 
+# Audit Logging
+
+The system automatically records important user actions.
+
+Examples:
+
+* Created task #1
+* Updated task #1
+* Deleted task #1
+
+Each log stores:
+
+* Username
+* Action performed
+* Timestamp
+
+Admins can view all audit logs through:
+
+GET /admin/audit-logs
+
+---
+
 # Future Improvements
 
 Possible enhancements:
 
-* Role based authorization
 * PostgreSQL database
 * Docker support
-* Unit testing
 * Integration testing
 * CI/CD pipeline
 * Logging and monitoring
+* Cloud deployment
 
 ---
 
